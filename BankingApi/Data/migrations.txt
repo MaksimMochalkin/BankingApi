@@ -1,0 +1,4 @@
+add-migration Initial -context BusinessAppDbContext -outputdir Data/ApplicationDb
+Update-Database -Context BusinessAppDbContext
+
+drop-database -context IdentityServerAppContext
