@@ -1,4 +1,4 @@
-add-migration Initial -context BusinessAppDbContext -outputdir Data/ApplicationDb
-Update-Database -Context BusinessAppDbContext
-
-drop-database -context IdentityServerAppContext
+add-migration Initial -context BankingAppDbContext -outputdir Data/ApplicationDb
+Update-Database -Context BankingAppDbContext
+Remove-Migration
+drop-database -context BankingAppDbContext
