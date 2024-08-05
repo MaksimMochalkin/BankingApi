@@ -1,20 +1,13 @@
 ﻿namespace BankingApi.Services
 {
-    using Azure;
     using BankingApi.Abstractions.Interfaces;
     using BankingApi.Data;
     using BankingApi.Data.Entities;
     using BankingApi.Models.Requests;
     using global::AutoMapper;
-    using Microsoft.EntityFrameworkCore;
-    using Microsoft.EntityFrameworkCore.Metadata.Internal;
     using Microsoft.Extensions.Caching.Memory;
     using Newtonsoft.Json;
-    using Newtonsoft.Json.Linq;
     using System.Collections.Generic;
-    using System.Linq.Expressions;
-    using System.Reflection;
-    using System.Text.RegularExpressions;
 
     public class ClientService : IClientService
     {
@@ -23,14 +16,17 @@
         private readonly BankingAppDbContext _context;
         private readonly IMapper _mapper;
         private readonly IMemoryCache _memoryCache;
+        private readonly ISqlQueryBuilderService<Client> _sqlQueryBuilderService;
 
         public ClientService(BankingAppDbContext context,
             IMapper mapper,
-            IMemoryCache memoryCache)
+            IMemoryCache memoryCache,
+            ISqlQueryBuilderService<Client> sqlQueryBuilderService)
         {
             _context = context;
             _mapper = mapper;
             _memoryCache = memoryCache;
+            _sqlQueryBuilderService = sqlQueryBuilderService;
         }
 
         public async Task<Client> CreateClientAsync(ClientCreateRequest request)
@@ -134,27 +130,7 @@
         private ClientFiltrationResult GetClientsAsync(ClientQueryParameters queryParams)
         {
             var query = _context.Clients.AsQueryable();
-
-            if (!string.IsNullOrEmpty(queryParams.Filters))
-            {
-                var filters = queryParams.Filters.Split('&');
-                foreach (var filter in filters)
-                {
-                    var match = Regex.Match(filter, @"(\w+)(eq|notEq|like)'(.+)'");
-                    if (match.Success)
-                    {
-                        var propertyName = match.Groups[1].Value;
-                        var operation = match.Groups[2].Value;
-                        var value = match.Groups[3].Value;
-
-                        query = ApplyFilter(query, propertyName, operation, value);
-                    }
-                }
-            }
-            if (!string.IsNullOrEmpty(queryParams.OrderBy))
-            {
-                query = ApplyFilter(query, queryParams.OrderBy, "orderby", null, queryParams.Descending);
-            }
+            query = _sqlQueryBuilderService.GenerateSqlQuery(query, queryParams);
 
             // todo: make async
             var totalItems = query.Count();
@@ -165,68 +141,6 @@
 
             var result = new ClientFiltrationResult(totalItems, queryParams.Page, queryParams.PageSize, clients);
             return result;
-        }
-
-        private IQueryable<Client> ApplyFilter(IQueryable<Client> query, string propertyName, string operation, string value, bool descending = false)
-        {
-            var parameter = Expression.Parameter(typeof(Client), "c");
-            var property = Expression.Property(parameter, propertyName);
-
-            object constantValue;
-            if (property.Type == typeof(Guid))
-            {
-                constantValue = Guid.Parse(value);
-            }
-            else
-            {
-                constantValue = Convert.ChangeType(value, property.Type);
-            }
-
-            var constant = Expression.Constant(Convert.ChangeType(constantValue, property.Type));
-            Expression expression = default;
-
-            switch (operation.ToLower())
-            {
-                case "eq":
-                    expression = Expression.Equal(property, constant);
-                    break;
-                case "noteq":
-                    expression = Expression.NotEqual(property, constant);
-                    break;
-                case "like":
-                    if (property.Type != typeof(string))
-                        throw new InvalidOperationException("LIKE operator is only applicable on string properties.");
-
-                    var method = typeof(DbFunctionsExtensions).GetMethod("Like", new[] { typeof(DbFunctions), typeof(string), typeof(string) });
-                    var functions = Expression.Constant(EF.Functions);
-                    expression = Expression.Call(null, method, functions, property, constant);
-                    break;
-                case "orderby":
-                    if (property.Type != typeof(string))
-                        throw new InvalidOperationException("LIKE operator is only applicable on string properties.");
-
-                    var keySelector = Expression.Lambda<Func<Client, object>>(
-                        Expression.Convert(property, typeof(object)),
-                        parameter);
-
-                    if (descending)
-                    {
-                        query = query.OrderByDescending(keySelector);
-                    }
-                    else
-                    {
-                        query = query.OrderBy(keySelector);
-                    }
-                    break;
-            }
-
-            if (expression == null)
-            {
-                return query;
-            }
-
-            var lambda = Expression.Lambda<Func<Client, bool>>(expression, parameter);
-            return query.Where(lambda);
         }
 
         private void CacheQuery(ClientQueryParameters queryParams)

@@ -20,6 +20,7 @@
         private readonly BankingAppDbContext _context;
         private readonly IMapper _mapper;
         private readonly IMemoryCache _memoryCache;
+        private readonly ISqlQueryBuilderService<Client> _sqlQueryBuilderService;
         private IClientService _clientService;
 
         public ClientServiceTests()
@@ -33,6 +34,7 @@
                 .UseInMemoryDatabase("TestDatabase")
                     .Options;
             _context = new BankingAppDbContext(options);
+            _sqlQueryBuilderService = new SqlQueryBuilderService<Client>();
         }
 
         [Fact]
@@ -40,7 +42,7 @@
         {
             // Arrange
             SeedDatabase(_context);
-            _clientService = new ClientService(_context, _mapper, _memoryCache);
+            _clientService = new ClientService(_context, _mapper, _memoryCache, _sqlQueryBuilderService);
             var request = new ClientCreateRequest
             {
                 FirstName = "JohnCreate",
@@ -82,7 +84,7 @@
         {
             // Arrange and Act
             SeedDatabase(_context);
-            _clientService = new ClientService(_context, _mapper, _memoryCache);
+            _clientService = new ClientService(_context, _mapper, _memoryCache, _sqlQueryBuilderService);
             var result = await _clientService.GetClientByIdAsync(ClientGuids.JohnDoeId);
 
             // Assert
@@ -96,12 +98,11 @@
         {
             // Arrange and Act
             SeedDatabase(_context);
-            _clientService = new ClientService(_context, _mapper, _memoryCache);
+            _clientService = new ClientService(_context, _mapper, _memoryCache, _sqlQueryBuilderService);
             var result = await _clientService.DeleteClientAsync(ClientGuids.DeleteDoeId);
 
             // Assert
             result.ShouldBeTrue();
-            //ClearDatabase();
             _context.Database.EnsureDeleted();
         }
 
@@ -110,7 +111,7 @@
         {
             // Arrange
             SeedDatabase(_context);
-            _clientService = new ClientService(_context, _mapper, _memoryCache);
+            _clientService = new ClientService(_context, _mapper, _memoryCache, _sqlQueryBuilderService);
             var updateRequest = new ClientUpdateRequest { FirstName = "Update2" };
 
             // Act
@@ -118,7 +119,6 @@
 
             // Assert
             result.ShouldBeTrue();
-            //ClearDatabase();
             _context.Database.EnsureDeleted();
         }
 
@@ -127,11 +127,11 @@
         {
             // Arrange
             SeedDatabase(_context);
-            _clientService = new ClientService(_context, _mapper, _memoryCache);
+            _clientService = new ClientService(_context, _mapper, _memoryCache, _sqlQueryBuilderService);
             var queryParams = new ClientQueryParameters
             {
                 Filters = "lastnamelike'%Doe%'",
-                OrderBy = "lastname",
+                OrderBy = "id",
                 Descending = true,
                 Page = 1,
                 PageSize = 10
@@ -143,15 +143,14 @@
             // Assert
             result.TotalItems.ShouldBe(4);
             result.Clients.Count.ShouldBe(4);
-            //ClearDatabase();
             _context.Database.EnsureDeleted();
         }
 
         [Fact]
-        public void GetRecentQueries_ReturnsListOfQueries()
+        public void GetRecentQueries_ReturnsListOfQueries() 
         {
             // Arrange
-            _clientService = new ClientService(_context, _mapper, _memoryCache);
+            _clientService = new ClientService(_context, _mapper, _memoryCache, _sqlQueryBuilderService);
             var queryParamsList = new List<ClientQueryParameters> 
             {
                 new ClientQueryParameters

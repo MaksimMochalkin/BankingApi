@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using RestaurantBooking.BusinesApi.Data;
 using Serilog;
 using System.Reflection;
 using System.Security.Claims;
@@ -29,7 +30,8 @@ var connectionString = builder.Configuration.GetConnectionString(nameof(BankingA
 
 builder.Services.AddDbContext<BankingAppDbContext>(config =>
     {
-        config.UseSqlServer(connectionString, sql => sql.MigrationsAssembly(migrationsAssembly));
+        //config.UseSqlServer(connectionString, sql => sql.MigrationsAssembly(migrationsAssembly));
+        config.UseInMemoryDatabase("MEMORY");
     });
 
 builder.Services.AddMemoryCache();
@@ -92,6 +94,7 @@ builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 
 builder.Services.AddAutoMapper(typeof(Program));
+builder.Services.AddScoped(typeof(ISqlQueryBuilderService<>), typeof(SqlQueryBuilderService<>));
 builder.Services.AddScoped<IClientService, ClientService>();
 
 builder.Services.AddEndpointsApiExplorer();
@@ -148,10 +151,10 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-//using (var scope = app.Services.CreateScope())
-//{
-//    DataBuilderInitializer.Init(scope.ServiceProvider);
-//}
+using (var scope = app.Services.CreateScope())
+{
+    DataBuilderInitializer.Init(scope.ServiceProvider);
+}
 app.Run();
 
 
