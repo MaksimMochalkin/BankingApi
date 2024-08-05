@@ -1,6 +1,6 @@
 ﻿namespace BankingApi.AutoMapper
 {
-    using BankingApi.Data.Entyties;
+    using BankingApi.Data.Entities;
     using BankingApi.Models.Dto;
     using BankingApi.Models.Requests;
     using global::AutoMapper;

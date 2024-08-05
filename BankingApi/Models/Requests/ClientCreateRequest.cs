@@ -1,6 +1,7 @@
-﻿using BankingApi.Models.Dto;
-namespace BankingApi.Models.Requests
+﻿namespace BankingApi.Models.Requests
 {
+    using BankingApi.Models.Dto;
+
     public class ClientCreateRequest
     {
         public string Email { get; set; }

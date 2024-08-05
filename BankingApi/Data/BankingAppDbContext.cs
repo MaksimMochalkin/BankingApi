@@ -1,8 +1,6 @@
 ﻿namespace RestaurantBooking.BusinesApi.Data
 {
-    using BankingApi.Data.Entyties;
-    using Microsoft.AspNetCore.Identity;
-    using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+    using BankingApi.Data.Entities;
     using Microsoft.EntityFrameworkCore;
 
     public class BankingAppDbContext : DbContext

@@ -1,6 +1,7 @@
 ﻿using BankingApi;
 using BankingApi.Abstractions.Interfaces;
 using BankingApi.Helpers;
+using BankingApi.Middleware;
 using BankingApi.PolicyHandlers;
 using BankingApi.Services;
 using FluentValidation;
@@ -30,6 +31,8 @@ builder.Services.AddDbContext<BankingAppDbContext>(config =>
     {
         config.UseSqlServer(connectionString, sql => sql.MigrationsAssembly(migrationsAssembly));
     });
+
+builder.Services.AddMemoryCache();
 
 
 builder.Services.AddCors(options =>
@@ -137,6 +140,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseMiddleware<ErrorHandlingMiddleware>();
 
 app.UseCors("AllowAllOrigins");
 app.UseRouting();

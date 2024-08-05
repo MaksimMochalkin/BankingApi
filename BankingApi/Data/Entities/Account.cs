@@ -1,4 +1,4 @@
-﻿namespace BankingApi.Data.Entyties
+﻿namespace BankingApi.Data.Entities
 {
     public class Account
     {
