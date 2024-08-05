@@ -1,4 +1,4 @@
-﻿namespace RestaurantBooking.BusinesApi.Data
+﻿namespace BankingApi.Data
 {
     using BankingApi.Data.Entities;
     using Microsoft.EntityFrameworkCore;

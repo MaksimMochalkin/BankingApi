@@ -1,5 +1,6 @@
 ﻿using BankingApi;
 using BankingApi.Abstractions.Interfaces;
+using BankingApi.Data;
 using BankingApi.Helpers;
 using BankingApi.Middleware;
 using BankingApi.PolicyHandlers;
@@ -13,7 +14,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using RestaurantBooking.BusinesApi.Data;
 using Serilog;
 using System.Reflection;
 using System.Security.Claims;

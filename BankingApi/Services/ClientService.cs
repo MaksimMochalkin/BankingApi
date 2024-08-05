@@ -1,13 +1,16 @@
 ﻿namespace BankingApi.Services
 {
+    using Azure;
     using BankingApi.Abstractions.Interfaces;
+    using BankingApi.Data;
     using BankingApi.Data.Entities;
     using BankingApi.Models.Requests;
     using global::AutoMapper;
     using Microsoft.EntityFrameworkCore;
+    using Microsoft.EntityFrameworkCore.Metadata.Internal;
     using Microsoft.Extensions.Caching.Memory;
     using Newtonsoft.Json;
-    using RestaurantBooking.BusinesApi.Data;
+    using Newtonsoft.Json.Linq;
     using System.Collections.Generic;
     using System.Linq.Expressions;
     using System.Reflection;
@@ -16,6 +19,7 @@
     public class ClientService : IClientService
     {
         private const string CacheKeyPrefix = "ClientSearch_";
+        private const string CacheKeys = "CacheKeys";
         private readonly BankingAppDbContext _context;
         private readonly IMapper _mapper;
         private readonly IMemoryCache _memoryCache;
@@ -116,7 +120,7 @@
         {
             try
             {
-                var keys = _memoryCache.Get<List<string>>("CacheKeys") ?? new List<string>();
+                var keys = _memoryCache.Get<List<string>>(CacheKeys) ?? new List<string>();
                 var recentQueries = keys.Select(_memoryCache.Get<string>).ToList();
 
                 return recentQueries;
@@ -147,18 +151,12 @@
                     }
                 }
             }
-
             if (!string.IsNullOrEmpty(queryParams.OrderBy))
             {
-                var propertyInfo = typeof(Client).GetProperty(queryParams.OrderBy, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
-                if (propertyInfo != null)
-                {
-                    query = queryParams.Descending
-                        ? query.OrderByDescending(e => propertyInfo.GetValue(e, null))
-                        : query.OrderBy(e => propertyInfo.GetValue(e, null));
-                }
+                query = ApplyFilter(query, queryParams.OrderBy, "orderby", null, queryParams.Descending);
             }
 
+            // todo: make async
             var totalItems = query.Count();
             var clients = query
                 .Skip((queryParams.Page - 1) * queryParams.PageSize)
@@ -169,7 +167,7 @@
             return result;
         }
 
-        private IQueryable<Client> ApplyFilter(IQueryable<Client> query, string propertyName, string operation, string value)
+        private IQueryable<Client> ApplyFilter(IQueryable<Client> query, string propertyName, string operation, string value, bool descending = false)
         {
             var parameter = Expression.Parameter(typeof(Client), "c");
             var property = Expression.Property(parameter, propertyName);
@@ -203,6 +201,23 @@
                     var functions = Expression.Constant(EF.Functions);
                     expression = Expression.Call(null, method, functions, property, constant);
                     break;
+                case "orderby":
+                    if (property.Type != typeof(string))
+                        throw new InvalidOperationException("LIKE operator is only applicable on string properties.");
+
+                    var keySelector = Expression.Lambda<Func<Client, object>>(
+                        Expression.Convert(property, typeof(object)),
+                        parameter);
+
+                    if (descending)
+                    {
+                        query = query.OrderByDescending(keySelector);
+                    }
+                    else
+                    {
+                        query = query.OrderBy(keySelector);
+                    }
+                    break;
             }
 
             if (expression == null)
@@ -220,14 +235,14 @@
             var cacheKey = CacheKeyPrefix + Guid.NewGuid().ToString();
             _memoryCache.Set(cacheKey, queryString, TimeSpan.FromHours(1));
 
-            var keys = _memoryCache.GetOrCreate("CacheKeys", entry => new List<string>());
+            var keys = _memoryCache.GetOrCreate(CacheKeys, entry => new List<string>());
             if (keys?.Count >= 3)
             {
                 _memoryCache.Remove(keys.First());
                 keys.RemoveAt(0);
             }
             keys?.Add(cacheKey);
-            _memoryCache.Set("CacheKeys", keys);
+            _memoryCache.Set(CacheKeys, keys);
         }
 
     }
